@@ -121,13 +121,19 @@ async function connectToWhatsApp() {
         isConnected = false;
         currentQR = null;
         const code = lastDisconnect?.error?.output?.statusCode;
-        const shouldReconnect = code !== DisconnectReason.loggedOut;
-        console.log("[WhatsApp] Disconnected. Code:", code, "| Reconnect:", shouldReconnect);
-        if (shouldReconnect) {
-          setTimeout(connectToWhatsApp, 5000);
-        } else {
-          console.log("[WhatsApp] Logged out. Delete rows from wa_auth table in Supabase and restart to re-login.");
+        const loggedOut = code === DisconnectReason.loggedOut;
+        console.log("[WhatsApp] Disconnected. Code:", code, "| LoggedOut:", loggedOut);
+        if (loggedOut) {
+          console.log("[WhatsApp] Session logged out — clearing auth from Supabase and reconnecting for QR...");
+          try {
+            await supabase.from('wa_auth').delete().neq('id', '__none__');
+            console.log("[WhatsApp] Auth cleared.");
+          } catch (e) {
+            console.error("[WhatsApp] Failed to clear auth:", e.message);
+          }
         }
+        // Always reconnect — will show QR if session was cleared
+        setTimeout(connectToWhatsApp, 3000);
       }
 
       if (connection === "open") {
