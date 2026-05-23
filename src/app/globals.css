@@ -117,14 +117,50 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Instamart design tokens */
+:root {
+  --im-body-text: #282C3F;
+  --im-secondary-text: rgba(2, 6, 12, 0.75);
+  --im-faint-text: rgba(2, 6, 12, 0.6);
+  --im-very-dark-text: rgba(2, 6, 12, 0.92);
+  --im-blue: #0050FF;
+  --im-orange: #FC8019;
+  --im-gray-search: #EFEFEF;
+  --im-gray-border: #E2E2E7;
+  --im-footer-bg: #02060C;
+  --im-app-banner-bg: #F0F0F5;
+  --im-header-shadow: rgba(2, 6, 12, 0.08) 0px 0px 8px 0px;
+  --im-font: var(--font-gilroy), Arial, "Helvetica Neue", sans-serif;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: white;
+    color: #282C3F;
+    font-family: var(--im-font);
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.2;
+    letter-spacing: -0.1px;
+    margin: 0;
+    padding: 0;
+    /* Prevent elastic scroll bounce on Android WebView */
+    overscroll-behavior: none;
   }
   html {
-    @apply font-sans;
+    font-family: var(--im-font);
+  }
+  /* Kill 300ms tap delay on all interactive elements */
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+  }
+  /* Safe area padding for bottom fixed bars on notched/gesture phones */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

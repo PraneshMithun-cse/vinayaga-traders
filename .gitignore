@@ -47,3 +47,12 @@ next-env.d.ts
 
 # Local temp files
 temp/
+temp_excel/
+android/
+ios/
+.wwebjs_auth/
+auth_info_baileys/
+wa_auth/
+*.apk
+*.xlsx
+*.csv
