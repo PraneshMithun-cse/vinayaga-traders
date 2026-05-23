@@ -122,7 +122,10 @@ async function connectToWhatsApp() {
         currentQR = null;
         const code = lastDisconnect?.error?.output?.statusCode;
         const loggedOut = code === DisconnectReason.loggedOut;
-        console.log("[WhatsApp] Disconnected. Code:", code, "| LoggedOut:", loggedOut);
+        const replaced = code === DisconnectReason.connectionReplaced; // 440
+
+        console.log("[WhatsApp] Disconnected. Code:", code);
+
         if (loggedOut) {
           console.log("[WhatsApp] Session logged out — clearing auth from Supabase and reconnecting for QR...");
           try {
@@ -131,9 +134,16 @@ async function connectToWhatsApp() {
           } catch (e) {
             console.error("[WhatsApp] Failed to clear auth:", e.message);
           }
+          setTimeout(connectToWhatsApp, 5000);
+        } else if (replaced) {
+          // Another instance took over — wait long + jitter so we don't fight each other
+          const delay = 45000 + Math.floor(Math.random() * 20000);
+          console.log(`[WhatsApp] Connection replaced by another instance. Waiting ${Math.round(delay/1000)}s before retrying...`);
+          setTimeout(connectToWhatsApp, delay);
+        } else {
+          // Normal disconnect (network, server restart) — reconnect quickly
+          setTimeout(connectToWhatsApp, 5000);
         }
-        // Always reconnect — will show QR if session was cleared
-        setTimeout(connectToWhatsApp, 3000);
       }
 
       if (connection === "open") {
