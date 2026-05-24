@@ -260,7 +260,8 @@ export default function CartPageClient() {
     if (!location) return;
     setAddress((prev) => ({
       ...prev,
-      locality: prev.locality || location.locality,
+      street: prev.street || location.street || location.area || "",
+      locality: prev.locality || location.locality || location.area || "",
       city: prev.city || location.city,
       pincode: prev.pincode || location.pincode,
     }));
@@ -328,7 +329,20 @@ export default function CartPageClient() {
         payment_method: paymentMethod === "COD" ? "Cash on Delivery" : "UPI",
       }).select().single();
 
-      if (data?.id) setOrderId(data.id);
+      if (data?.id) {
+        setOrderId(data.id);
+        try {
+          const placed = JSON.parse(localStorage.getItem("vt_my_orders") || "[]");
+          if (Array.isArray(placed)) {
+            placed.push(data.id);
+            localStorage.setItem("vt_my_orders", JSON.stringify(placed));
+          } else {
+            localStorage.setItem("vt_my_orders", JSON.stringify([data.id]));
+          }
+        } catch (e) {
+          console.error("Failed to save order ID to local storage:", e);
+        }
+      }
     } catch { /* silent fail — order still shown as placed */ }
 
     clearCart();
@@ -374,7 +388,7 @@ export default function CartPageClient() {
         >
           <div style={{ fontSize: 26, fontWeight: 900, color: "#282C3F", marginBottom: 8 }}>Order Placed! 🎉</div>
           <div style={{ fontSize: 14, color: "#1BA672", fontWeight: 700, marginBottom: 6 }}>
-            {paymentMethod === "COD" ? "Cash on Delivery" : "UPI on Delivery"} · Expected in 17 mins
+            Cash on Delivery · Superfast Delivery
           </div>
           <div style={{ fontSize: 13, color: "rgba(2,6,12,0.45)", marginBottom: 6 }}>
             Delivering to: {address.doorNo}{address.building ? `, ${address.building}` : ""}, {address.locality}
@@ -444,7 +458,7 @@ export default function CartPageClient() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
           <polygon points="13,2 3,14 12,14 11,22 21,10 12,10" fill="#0050FF" />
         </svg>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#0050FF" }}>FREE Delivery · 17 Mins</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#0050FF" }}>FREE Express Delivery</span>
         <span style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>
           · {location?.display ?? "Detecting location…"}
         </span>
@@ -519,47 +533,26 @@ export default function CartPageClient() {
       {/* Payment method */}
       <div style={{ backgroundColor: "white", marginBottom: 8, padding: "16px" }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "#282C3F", marginBottom: 14 }}>Payment Method</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {(["COD", "UPI"] as const).map((method) => {
-            const selected = paymentMethod === method;
-            return (
-              <button
-                key={method}
-                onClick={() => setPaymentMethod(method)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 14, padding: "14px",
-                  border: `2px solid ${selected ? "#0050FF" : "#E8E8E8"}`,
-                  borderRadius: 12,
-                  backgroundColor: selected ? "#F5F8FF" : "white",
-                  cursor: "pointer", textAlign: "left", transition: "all 0.15s",
-                }}
-              >
-                <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${selected ? "#0050FF" : "#CCCCCC"}`, backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  {selected && <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#0050FF" }} />}
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#282C3F" }}>
-                    {method === "COD" ? "Cash on Delivery" : "UPI Payment"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", marginTop: 1 }}>
-                    {method === "COD" ? "Pay cash when order arrives" : "Pay via UPI when order arrives"}
-                  </div>
-                </div>
-                {method === "COD" ? (
-                  <svg width="28" height="20" viewBox="0 0 40 28" fill="none" style={{ marginLeft: "auto" }}>
-                    <rect width="40" height="28" rx="4" fill="#F0F0F0" />
-                    <rect x="4" y="8" width="32" height="4" rx="1" fill="#888" />
-                    <rect x="4" y="16" width="14" height="4" rx="1" fill="#888" />
-                  </svg>
-                ) : (
-                  <svg width="28" height="28" viewBox="0 0 48 48" fill="none" style={{ marginLeft: "auto" }}>
-                    <rect width="48" height="48" rx="8" fill="#F0F0F0" />
-                    <text x="24" y="30" textAnchor="middle" fontSize="14" fontWeight="800" fill="#6750A4">UPI</text>
-                  </svg>
-                )}
-              </button>
-            );
-          })}
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 14, padding: "14px",
+            border: "2px solid #E8E8E8",
+            borderRadius: 12,
+            backgroundColor: "white",
+          }}
+        >
+          <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid #0050FF", backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#0050FF" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#282C3F" }}>Cash on Delivery</div>
+            <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", marginTop: 1 }}>Pay cash when order arrives</div>
+          </div>
+          <svg width="28" height="20" viewBox="0 0 40 28" fill="none" style={{ marginLeft: "auto" }}>
+            <rect width="40" height="28" rx="4" fill="#F0F0F0" />
+            <rect x="4" y="8" width="32" height="4" rx="1" fill="#888" />
+            <rect x="4" y="16" width="14" height="4" rx="1" fill="#888" />
+          </svg>
         </div>
       </div>
 
@@ -580,7 +573,7 @@ export default function CartPageClient() {
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 11, color: "#1BA672", fontWeight: 600 }}>FREE Delivery</div>
-            <div style={{ fontSize: 11, color: "#1BA672", fontWeight: 600 }}>⚡ 17 mins</div>
+            <div style={{ fontSize: 11, color: "#1BA672", fontWeight: 600 }}>⚡ Fast Delivery</div>
           </div>
         </div>
         <button

@@ -2,7 +2,7 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 
 async function check() {
-  const filePath = path.join(__dirname, 'public', 'Copy of Copy of vinayaga traders all products edit.xlsx');
+  const filePath = path.join(__dirname, 'temp_excel', 'Copy of Copy of vinayaga traders all products edit.xlsx');
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
   const worksheet = workbook.worksheets[0];

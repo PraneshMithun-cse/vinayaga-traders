@@ -94,7 +94,23 @@ function VariantRow({
           )}
         </div>
 
-        {qty === 0 ? (
+        {product.outOfStock ? (
+          <span
+            style={{
+              color: "#EF4444",
+              fontWeight: 800,
+              fontSize: 12,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              padding: "4px 8px",
+              backgroundColor: "#FFF0F0",
+              borderRadius: 6,
+              border: "1px solid #FFC9C9",
+            }}
+          >
+            Out of Stock
+          </span>
+        ) : qty === 0 ? (
           <button
             onClick={() => onDelta(1)}
             style={{

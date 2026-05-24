@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Product, PRODUCTS } from "@/data/products";
 import { fuzzySearch } from "@/lib/search";
 import { useCart } from "@/context/CartContext";
+import { useAdmin } from "@/context/AdminContext";
 import VariantModal from "./VariantModal";
 
 const SUGGESTED_SLUGS = [
@@ -65,7 +66,7 @@ function SearchResultCard({ product, onAdd }: { product: Product; onAdd: () => v
         }}
       >
         <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0, borderRadius: 10, overflow: "hidden", backgroundColor: "#F8F8F8" }}>
-          <Image src={product.imageUrl} alt={product.name} fill sizes="72px" style={{ objectFit: "contain" }} />
+          <Image src={product.imageUrl} alt={product.name} fill sizes="72px" style={{ objectFit: "contain", opacity: product.outOfStock ? 0.5 : 1 }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#282C3F", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -84,26 +85,42 @@ function SearchResultCard({ product, onAdd }: { product: Product; onAdd: () => v
             )}
           </div>
         </div>
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(); }}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            border: "1.5px solid #0050FF",
-            backgroundColor: "white",
-            color: "#0050FF",
-            fontSize: 22,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          +
-        </button>
+        {product.outOfStock ? (
+          <span
+            style={{
+              padding: "4px 8px",
+              borderRadius: 6,
+              backgroundColor: "#EF4444",
+              color: "white",
+              fontSize: 10,
+              fontWeight: 800,
+              flexShrink: 0,
+            }}
+          >
+            OOS
+          </span>
+        ) : (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(); }}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              border: "1.5px solid #0050FF",
+              backgroundColor: "white",
+              color: "#0050FF",
+              fontSize: 22,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            +
+          </button>
+        )}
       </div>
     </Link>
   );
@@ -128,15 +145,17 @@ export default function SearchContent() {
     inputRef.current?.focus();
   }, []);
 
+  const { applyOverride } = useAdmin();
+
   const trimmed = query.trim();
   const results = useMemo(() => {
     const filtered = trimmed ? fuzzySearch(trimmed) : [];
-    const arr = [...filtered];
+    const arr = filtered.map(applyOverride).filter((p) => !p.disabled);
     if (sort === "price-asc") arr.sort((a, b) => minPrice(a) - minPrice(b));
     else if (sort === "price-desc") arr.sort((a, b) => minPrice(b) - minPrice(a));
     else if (sort === "discount") arr.sort((a, b) => maxDiscount(b) - maxDiscount(a));
     return arr;
-  }, [trimmed, sort]);
+  }, [trimmed, sort, applyOverride]);
 
   return (
     <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", backgroundColor: "#F8F8F8" }}>

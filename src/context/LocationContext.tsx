@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import axios from "axios";
 
 export type LocationData = {
   street: string;
@@ -117,45 +118,97 @@ function getCoordinates(): Promise<{ lat: number; lng: number; source: "gps" | "
   });
 }
 
-// ─── Reverse geocode via our server-side API route ───
-async function reverseGeocode(lat: number, lng: number): Promise<LocationData> {
-  const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
-  const data = await res.json();
+// ─── India Post Pincode lookup via Baileys server proxy ───
+// The browser cannot call India Post directly (CORS + expired SSL cert).
+// We proxy through the Baileys Express server (port 3002) which calls it server-side.
+const PINCODE_API = typeof window !== "undefined"
+  ? `${window.location.protocol}//${window.location.hostname}:3002`
+  : "http://localhost:3002";
 
-  if (!res.ok || data.error) {
-    throw new Error(data.error || "Geocoding failed");
+async function getIndiaPostPincode(localityName: string, district: string): Promise<string> {
+  if (!localityName || localityName.length < 3) return "";
+
+  try {
+    const res = await fetch(
+      `${PINCODE_API}/api/pincode?name=${encodeURIComponent(localityName)}&district=${encodeURIComponent(district)}`
+    );
+    const data = await res.json();
+    return data.pincode || "";
+  } catch {
+    return "";
   }
+}
 
-  const street: string = data.street || "";
-  const area: string = data.area || "";
-  const locality: string = data.locality || "";
-  const city: string = data.city || "";
-  const state: string = data.state || "";
-  const pincode: string = data.pincode || "";
-  const formatted: string = data.formatted || "";
+// ─── Multi-source reverse geocode ───
+// Architecture:
+//   1. Geoapify → street, area, locality, city (good at address components)
+//   2. India Post API → pincode (the ONLY accurate source for Indian pincodes)
+//   3. Merge: take address from Geoapify, pincode from India Post
+async function reverseGeocode(lat: number, lng: number): Promise<LocationData> {
+  const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY || "c97ed431fa624280ab468734df9fc302";
+  const url = `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${apiKey}`;
+  
+  try {
+    const res = await axios.get(url);
+    const properties = res.data.features?.[0]?.properties;
 
-  // Build a clean display: "Area, Locality, City"
-  const displayParts: string[] = [];
-  if (area) displayParts.push(area);
-  if (locality && locality !== area) displayParts.push(locality);
-  if (city && !displayParts.includes(city)) displayParts.push(city);
-  if (displayParts.length === 0 && street) displayParts.push(street);
-  if (displayParts.length === 0 && formatted) displayParts.push(formatted.split(",")[0] || "");
+    if (!properties) {
+      throw new Error("No location data found");
+    }
 
-  const display = displayParts.length > 0 ? displayParts.join(", ") : formatted || "Unknown";
+    const street: string = properties.street || properties.name || "";
+    const area: string = properties.suburb || properties.district || "";
+    const locality: string = properties.city_district || properties.county || "";
+    const city: string = properties.city || properties.state_district || "";
+    const state: string = properties.state || "";
+    const formatted: string = properties.formatted || "";
 
-  return {
-    street,
-    area,
-    locality,
-    city,
-    state,
-    pincode,
-    display,
-    formatted,
-    lat: data.lat ?? lat,
-    lng: data.lng ?? lng,
-  };
+    // ── PINCODE: Use India Post API for 100% accuracy ──
+    // We try multiple search terms from most specific to least specific:
+    //   1. Street name (e.g. "Thoppampatti road" → "Thoppampatti")
+    //   2. Suburb/area name
+    //   3. City district / county name
+    // The first one that returns a match for our district wins.
+    const district = locality || city;
+    let pincode = "";
+
+    // Try each candidate in order of specificity
+    const candidates = [street, area, locality].filter(Boolean);
+    for (const candidate of candidates) {
+      if (pincode) break;
+      pincode = await getIndiaPostPincode(candidate, district);
+    }
+
+    // Fallback to Geoapify pincode if India Post returned nothing
+    if (!pincode) {
+      pincode = properties.postcode || "";
+    }
+
+    // Build a clean display prioritizing Street and Locality
+    const displayParts: string[] = [];
+    if (street) displayParts.push(street);
+    if (locality && locality !== street) displayParts.push(locality);
+    if (area && area !== locality && area !== street) displayParts.push(area);
+    if (city && !displayParts.includes(city)) displayParts.push(city);
+    if (displayParts.length === 0 && formatted) displayParts.push(formatted.split(",")[0] || "");
+
+    const display = displayParts.length > 0 ? displayParts.join(", ") : formatted || "Unknown";
+
+    return {
+      street,
+      area,
+      locality,
+      city,
+      state,
+      pincode,
+      display,
+      formatted,
+      lat: properties.lat ?? lat,
+      lng: properties.lon ?? lng,
+    };
+  } catch (err) {
+    throw new Error("Geocoding failed");
+  }
 }
 
 export function LocationProvider({ children }: { children: ReactNode }) {

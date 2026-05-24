@@ -4,7 +4,7 @@ const express = require("express");
 const http = require("http");
 
 const PORT = 3001;
-const TARGET_NUMBER = "96555666020"; // order notifications go here
+const TARGET_NUMBER = "919655566602"; // order notifications go here
 
 const app = express();
 app.use(express.json());

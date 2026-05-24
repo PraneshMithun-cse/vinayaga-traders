@@ -58,24 +58,40 @@ function SuggestedCard({ product, onAdd }: { product: Product; onAdd: () => void
     <Link href={`/product/${product.slug}`} style={{ textDecoration: "none", flexShrink: 0, width: 130 }}>
       <div style={{ backgroundColor: "white", borderRadius: 12, overflow: "hidden", border: "1px solid #F0F0F0" }}>
         <div style={{ position: "relative", height: 110, backgroundColor: "#F8F8F8" }}>
-          <Image src={product.imageUrl} alt={product.name} fill sizes="130px" style={{ objectFit: "contain", padding: 8 }} />
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(); }}
-            style={{
-              position: "absolute", bottom: 6, right: 6,
-              width: qty > 0 ? "auto" : 28, height: 28,
-              minWidth: 28,
-              borderRadius: qty > 0 ? 8 : 8,
-              border: "1.5px solid #0050FF",
-              backgroundColor: qty > 0 ? "#0050FF" : "white",
-              color: qty > 0 ? "white" : "#0050FF",
-              fontSize: qty > 0 ? 12 : 20, fontWeight: 700,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              padding: qty > 0 ? "0 8px" : 0,
-            }}
-          >
-            {qty > 0 ? qty : "+"}
-          </button>
+          <Image src={product.imageUrl} alt={product.name} fill sizes="130px" style={{ objectFit: "contain", padding: 8, opacity: product.outOfStock ? 0.5 : 1 }} />
+          {product.outOfStock ? (
+            <div
+              style={{
+                position: "absolute", bottom: 6, right: 6,
+                padding: "2px 6px",
+                borderRadius: 4,
+                backgroundColor: "#EF4444",
+                color: "white",
+                fontSize: 8,
+                fontWeight: 800,
+              }}
+            >
+              OOS
+            </div>
+          ) : (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(); }}
+              style={{
+                position: "absolute", bottom: 6, right: 6,
+                width: qty > 0 ? "auto" : 28, height: 28,
+                minWidth: 28,
+                borderRadius: qty > 0 ? 8 : 8,
+                border: "1.5px solid #0050FF",
+                backgroundColor: qty > 0 ? "#0050FF" : "white",
+                color: qty > 0 ? "white" : "#0050FF",
+                fontSize: qty > 0 ? 12 : 20, fontWeight: 700,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                padding: qty > 0 ? "0 8px" : 0,
+              }}
+            >
+              {qty > 0 ? qty : "+"}
+            </button>
+          )}
         </div>
         <div style={{ padding: "8px 8px 10px" }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#282C3F", lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
@@ -91,7 +107,7 @@ function SuggestedCard({ product, onAdd }: { product: Product; onAdd: () => void
   );
 }
 
-export default function ProductPageClient({ product }: { product: Product }) {
+export default function ProductPageClient({ product: rawProduct }: { product: Product }) {
   const [imgIdx, setImgIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
@@ -99,6 +115,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
   const { getProductQty } = useCart();
   const { applyOverride } = useAdmin();
 
+  const product = applyOverride(rawProduct);
   const v = product.variants[0];
   const hasDiscount = v.discountPercent > 0;
   const images = product.images.length > 0 ? product.images : [product.imageUrl];
@@ -171,7 +188,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
       {/* Product info card */}
       <div style={{ backgroundColor: "white", marginTop: 10, padding: "16px 16px 0", borderRadius: "0 0 0 0" }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: "#0050FF", letterSpacing: 0.8, marginBottom: 6, textTransform: "uppercase" }}>
-          {product.categoryName} · {product.deliveryMins} mins delivery
+          {product.categoryName} · Express Delivery
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#282C3F", margin: "0 0 12px", lineHeight: 1.3 }}>
           {product.name}
@@ -223,7 +240,7 @@ export default function ProductPageClient({ product }: { product: Product }) {
         {/* Delivery info strip */}
         <div style={{ display: "flex", gap: 16, paddingBottom: 16, borderTop: "1px solid #F0F0F0", paddingTop: 14 }}>
           {[
-            { icon: "⚡", label: `${product.deliveryMins} Mins`, sub: "Delivery" },
+            { icon: "⚡", label: "Express", sub: "Delivery" },
             { icon: "✓", label: "Fresh", sub: "Quality assured" },
             { icon: "↩", label: "Easy", sub: "Returns" },
           ].map((item) => (
@@ -260,36 +277,52 @@ export default function ProductPageClient({ product }: { product: Product }) {
           display: "flex", gap: 10,
         }}
       >
-        {productQty > 0 && (
-          <Link
-            href="/cart"
+        {product.outOfStock ? (
+          <button
+            disabled
             style={{
-              flex: "0 0 auto", padding: "14px 20px",
-              backgroundColor: "#F0F4FF", color: "#0050FF",
-              border: "1.5px solid #0050FF", borderRadius: 12,
-              fontSize: 14, fontWeight: 700, cursor: "pointer",
-              textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
+              flex: 1, padding: "14px",
+              backgroundColor: "#EAEAEA", color: "#EF4444",
+              border: "1px solid #FFD3D3", borderRadius: 12,
+              fontSize: 15, fontWeight: 800, cursor: "not-allowed", letterSpacing: 0.5,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#0050FF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="3" y1="6" x2="21" y2="6" stroke="#0050FF" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M16 10a4 4 0 01-8 0" stroke="#0050FF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Cart ({productQty})
-          </Link>
+            OUT OF STOCK
+          </button>
+        ) : (
+          <>
+            {productQty > 0 && (
+              <Link
+                href="/cart"
+                style={{
+                  flex: "0 0 auto", padding: "14px 20px",
+                  backgroundColor: "#F0F4FF", color: "#0050FF",
+                  border: "1.5px solid #0050FF", borderRadius: 12,
+                  fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#0050FF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="3" y1="6" x2="21" y2="6" stroke="#0050FF" strokeWidth="1.8" strokeLinecap="round" />
+                  <path d="M16 10a4 4 0 01-8 0" stroke="#0050FF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Cart ({productQty})
+              </Link>
+            )}
+            <button
+              onClick={() => setModalOpen(true)}
+              style={{
+                flex: 1, padding: "14px",
+                backgroundColor: "#0050FF", color: "white",
+                border: "none", borderRadius: 12,
+                fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5,
+              }}
+            >
+              {productQty > 0 ? "Add More" : "ADD TO CART"}
+            </button>
+          </>
         )}
-        <button
-          onClick={() => setModalOpen(true)}
-          style={{
-            flex: 1, padding: "14px",
-            backgroundColor: "#0050FF", color: "white",
-            border: "none", borderRadius: 12,
-            fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5,
-          }}
-        >
-          {productQty > 0 ? "Add More" : "ADD TO CART"}
-        </button>
       </div>
 
       <VariantModal product={modalOpen ? product : null} onClose={() => setModalOpen(false)} />

@@ -152,17 +152,33 @@ export default function ProductCard({ product, layout = "horizontal", onAdd }: P
               alt={product.name}
               fill
               sizes="(max-width: 430px) 50vw, 33vw"
-              style={{ objectFit: "cover" }}
+              style={{ objectFit: "cover", opacity: product.outOfStock ? 0.5 : 1 }}
             />
-            <div style={{ position: "absolute", top: 8, right: 8 }}>
-              <CartPill qty={cartQty} onTap={handleAdd} onMinus={handleMinus} size="md" />
-            </div>
+            {product.outOfStock ? (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  backgroundColor: "#EF4444",
+                  color: "white",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "4px 8px",
+                  borderRadius: 6,
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                OUT OF STOCK
+              </div>
+            ) : (
+              <div style={{ position: "absolute", top: 8, right: 8 }}>
+                <CartPill qty={cartQty} onTap={handleAdd} onMinus={handleMinus} size="md" />
+              </div>
+            )}
           </div>
 
           <div style={{ padding: "8px 10px 12px" }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(2,6,12,0.45)", letterSpacing: 0.3, marginBottom: 3 }}>
-              {product.deliveryMins} MINS
-            </div>
             <div
               style={{
                 fontSize: 13,
@@ -232,11 +248,30 @@ export default function ProductCard({ product, layout = "horizontal", onAdd }: P
             alt={product.name}
             fill
             sizes="156px"
-            style={{ objectFit: "cover" }}
+            style={{ objectFit: "cover", opacity: product.outOfStock ? 0.5 : 1 }}
           />
-          <div style={{ position: "absolute", top: 8, right: 8 }}>
-            <CartPill qty={cartQty} onTap={handleAdd} onMinus={handleMinus} size="sm" />
-          </div>
+          {product.outOfStock ? (
+            <div
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                backgroundColor: "#EF4444",
+                color: "white",
+                fontSize: 8,
+                fontWeight: 800,
+                padding: "3px 6px",
+                borderRadius: 4,
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              OUT OF STOCK
+            </div>
+          ) : (
+            <div style={{ position: "absolute", top: 8, right: 8 }}>
+              <CartPill qty={cartQty} onTap={handleAdd} onMinus={handleMinus} size="sm" />
+            </div>
+          )}
           {product.badge && (
             <div
               style={{
@@ -257,9 +292,6 @@ export default function ProductCard({ product, layout = "horizontal", onAdd }: P
         </div>
 
         <div style={{ padding: "0 4px" }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(2,6,12,0.45)", letterSpacing: 0.3, marginBottom: 2 }}>
-            {product.deliveryMins} MINS
-          </div>
           <div
             style={{
               fontSize: 13,

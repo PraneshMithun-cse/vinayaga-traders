@@ -564,11 +564,11 @@ function WhatsAppSettings() {
           <input
             value={draftNum}
             onChange={(e) => setDraftNum(e.target.value)}
-            placeholder="919585666020"
+            placeholder="919655566602"
             type="tel"
             style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E8E8E8", fontSize: 15, color: "#282C3F", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
           />
-          <div style={{ fontSize: 11, color: "rgba(2,6,12,0.4)", marginTop: 4 }}>Include country code (e.g. 919585666020 for +91 98765 43210)</div>
+          <div style={{ fontSize: 11, color: "rgba(2,6,12,0.4)", marginTop: 4 }}>Include country code (e.g. 919655566602 for +91 96555 66602)</div>
         </div>
 
         {saved && <div style={{ backgroundColor: "#DCFCE7", border: "1px solid #86EFAC", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#166534", fontWeight: 700, marginBottom: 12 }}>✓ Saved!</div>}
@@ -690,6 +690,45 @@ function OrdersTab() {
                   </div>
                 ))}
               </div>
+
+              {order.status !== "delivered" && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const { error } = await supabase
+                        .from("orders")
+                        .update({ status: "delivered" })
+                        .eq("id", order.id);
+                      if (!error) {
+                        setOrders((prev) =>
+                          prev.map((o) =>
+                            o.id === order.id ? { ...o, status: "delivered" } : o
+                          )
+                        );
+                      }
+                    } catch (err) {
+                      console.error("Failed to update order status:", err);
+                    }
+                  }}
+                  style={{
+                    marginTop: 14,
+                    width: "100%",
+                    padding: "10px",
+                    backgroundColor: "#22C55E",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  ✓ Mark as Delivered
+                </button>
+              )}
+
               <div style={{ marginTop: 8, fontSize: 11, color: "rgba(2,6,12,0.35)", fontFamily: "monospace" }}>ID: {order.id}</div>
             </div>
           )}

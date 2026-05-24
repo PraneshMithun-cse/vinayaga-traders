@@ -47,7 +47,7 @@ const AdminContext = createContext<AdminContextType | null>(null);
 const CREDS = { username: "guna", password: "mathuraiveeran" };
 const STORAGE_SESSION = "vt_admin_session";
 const STORAGE_WA = "vt_admin_whatsapp";
-const DEFAULT_WA = "919585666020";
+const DEFAULT_WA = "919655566602";
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);

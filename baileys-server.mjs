@@ -77,7 +77,7 @@ async function useSupabaseAuthState() {
     }
   };
 }
-const OWNER_PHONE = process.env.OWNER_PHONE || "919585666020";
+const OWNER_PHONE = process.env.OWNER_PHONE || "919655566602";
 const PORT = process.env.WA_PORT || 3002;
 
 const app = express();
@@ -215,6 +215,99 @@ async function pollOrders() {
 setInterval(pollOrders, 5000);
 
 // ── HTTP API for Admin Panel ────────────────────────────────────────
+
+// CORS — allow the static app (any origin) to call this server
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
+// ── India Post Pincode Proxy ──
+// The browser can't call http://postalpincode.in directly (CORS + expired SSL).
+// This endpoint proxies the call server-side for 100% accurate Indian pincodes.
+app.get("/api/pincode", async (req, res) => {
+  const name = req.query.name || "";
+  const district = req.query.district || "";
+
+  if (!name || name.length < 3) {
+    return res.json({ pincode: "" });
+  }
+
+  // Clean: remove "road", "street", "nagar", trailing numbers
+  const cleanName = name
+    .replace(/\s+(road|street|nagar|st|rd)$/i, "")
+    .replace(/\s+\d+$/, "")
+    .trim();
+
+  if (!cleanName || cleanName.length < 3) {
+    return res.json({ pincode: "" });
+  }
+
+  try {
+    const apiRes = await fetch(
+      `http://www.postalpincode.in/api/postoffice/${encodeURIComponent(cleanName)}`,
+      { headers: { "User-Agent": "VinayagaTraders/1.0" } }
+    );
+    const data = await apiRes.json();
+
+    if (data.Status !== "Success" || !data.PostOffice?.length) {
+      return res.json({ pincode: "" });
+    }
+
+    // Match by district — use priority-based matching
+    // District > Taluk > Division > Region (Region is too broad — can match wrong entries)
+    if (district) {
+      const distLower = district.toLowerCase().replace(/\s+(north|south|east|west)$/i, "").trim();
+      
+      // Priority 1: Exact District match
+      let match = data.PostOffice.find(
+        (po) => po.District?.toLowerCase().includes(distLower)
+      );
+      // Priority 2: Taluk match
+      if (!match) {
+        match = data.PostOffice.find(
+          (po) => po.Taluk?.toLowerCase().includes(distLower)
+        );
+      }
+      // Priority 3: Division match
+      if (!match) {
+        match = data.PostOffice.find(
+          (po) => po.Division?.toLowerCase().includes(distLower)
+        );
+      }
+      // Priority 4: Region match (least specific)
+      if (!match) {
+        match = data.PostOffice.find(
+          (po) => po.Region?.toLowerCase().includes(distLower)
+        );
+      }
+      if (match) {
+        return res.json({
+          pincode: match.PINCode,
+          postOffice: match.Name,
+          district: match.District,
+        });
+      }
+    }
+
+    // Single result
+    if (data.PostOffice.length === 1) {
+      return res.json({
+        pincode: data.PostOffice[0].PINCode,
+        postOffice: data.PostOffice[0].Name,
+        district: data.PostOffice[0].District,
+      });
+    }
+
+    return res.json({ pincode: "" });
+  } catch (err) {
+    return res.json({ pincode: "", error: "India Post API unreachable" });
+  }
+});
+
 app.get("/health", (req, res) => {
   res.json({ connected: isConnected, hasQR: !!currentQR });
 });

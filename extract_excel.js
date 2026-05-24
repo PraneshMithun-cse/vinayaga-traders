@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 async function extract() {
-  const filePath = path.join(__dirname, 'public', 'Copy of Copy of vinayaga traders all products edit.xlsx');
+  const filePath = path.join(__dirname, 'temp_excel', 'Copy of Copy of vinayaga traders all products edit.xlsx');
   const outDir = path.join(__dirname, 'public', 'images', 'products');
   
   if (!fs.existsSync(outDir)) {

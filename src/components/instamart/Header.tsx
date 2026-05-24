@@ -5,39 +5,71 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useLocation, LocationData } from "@/context/LocationContext";
+import { supabase } from "@/lib/supabase";
 
 const SEARCH_SUGGESTIONS = ["Toor Dal", "Turmeric", "Cashews", "Basmati Rice", "Cumin Seeds", "Besan", "Sesame Oil"];
 
-type GoogleSearchResult = {
-  formatted: string;
-  street: string;
-  area: string;
-  locality: string;
-  city: string;
-  state: string;
-  pincode: string;
-  lat: number;
-  lng: number;
-};
+// ─── India Post Pincode lookup via Baileys server proxy ───
+const PINCODE_API = typeof window !== "undefined"
+  ? `${window.location.protocol}//${window.location.hostname}:3002`
+  : "http://localhost:3002";
 
-function googleResultToLocation(r: GoogleSearchResult): LocationData {
+async function getIndiaPostPincode(localityName: string, district: string): Promise<string> {
+  if (!localityName || localityName.length < 3) return "";
+  try {
+    const res = await fetch(
+      `${PINCODE_API}/api/pincode?name=${encodeURIComponent(localityName)}&district=${encodeURIComponent(district)}`
+    );
+    const data = await res.json();
+    return data.pincode || "";
+  } catch {
+    return "";
+  }
+}
+
+async function geoapifyResultToLocation(r: any, query: string): Promise<LocationData> {
+  const userPincodeMatch = query.match(/\b[1-9][0-9]{5}\b/);
+  const userPincode = userPincodeMatch ? userPincodeMatch[0] : null;
+
+  const street = r.street || r.name || "";
+  const area = r.suburb || r.district || "";
+  const locality = r.city_district || r.county || "";
+  const city = r.city || r.state_district || "";
+  const state = r.state || "";
+  const formatted = r.formatted || "";
+
+  // Pincode: user-typed > India Post verified > Geoapify fallback
+  let pincode = "";
+  if (userPincode) {
+    pincode = userPincode;
+  } else {
+    const district = locality || city;
+    const candidates = [street, area, locality].filter(Boolean);
+    for (const candidate of candidates) {
+      if (pincode) break;
+      pincode = await getIndiaPostPincode(candidate, district);
+    }
+    if (!pincode) pincode = r.postcode || "";
+  }
+
   const displayParts: string[] = [];
-  if (r.street) displayParts.push(r.street);
-  if (r.area && r.area !== r.street) displayParts.push(r.area);
-  if (r.locality && r.locality !== r.area && r.locality !== r.street) displayParts.push(r.locality);
-  if (r.city && !displayParts.includes(r.city)) displayParts.push(r.city);
+  if (street) displayParts.push(street);
+  if (locality && locality !== street) displayParts.push(locality);
+  if (area && area !== locality && area !== street) displayParts.push(area);
+  if (city && !displayParts.includes(city)) displayParts.push(city);
+  if (displayParts.length === 0 && formatted) displayParts.push(formatted.split(",")[0] || "");
 
   return {
-    street: r.street || "",
-    area: r.area || "",
-    locality: r.locality || "",
-    city: r.city || "",
-    state: r.state || "",
-    pincode: r.pincode || "",
-    display: displayParts.length > 0 ? displayParts.join(", ") : r.formatted || "",
-    formatted: r.formatted || "",
+    street,
+    area,
+    locality,
+    city,
+    state,
+    pincode,
+    display: displayParts.length > 0 ? displayParts.join(", ") : formatted || "Unknown",
+    formatted,
     lat: r.lat,
-    lng: r.lng,
+    lng: r.lon,
   };
 }
 
@@ -57,7 +89,7 @@ function LocationModal({
   error: string | null;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<GoogleSearchResult[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,7 +100,9 @@ function LocationModal({
     if (q.trim().length < 2) { setResults([]); return; }
     setSearching(true);
     try {
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+      const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY || "c97ed431fa624280ab468734df9fc302";
+      const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(q)}&apiKey=${apiKey}&format=json`;
+      const res = await fetch(url);
       const data = await res.json();
       if (data.results) {
         setResults(data.results);
@@ -89,8 +123,9 @@ function LocationModal({
     timerRef.current = setTimeout(() => search(val), 350);
   }
 
-  function handleSelect(r: GoogleSearchResult) {
-    onSelectAddress(googleResultToLocation(r));
+  async function handleSelect(r: any) {
+    const loc = await geoapifyResultToLocation(r, query);
+    onSelectAddress(loc);
   }
 
   return (
@@ -337,6 +372,7 @@ function LocationModal({
 export default function Header() {
   const [searchIdx, setSearchIdx] = useState(0);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
   const [waitingForGPS, setWaitingForGPS] = useState(false);
   const router = useRouter();
   const { totalItems, totalPrice } = useCart();
@@ -399,8 +435,8 @@ export default function Header() {
             <Image
               src="/vinayaga-logo.png"
               alt="Vinayaga Traders"
-              width={68}
-              height={68}
+              width={85}
+              height={85}
               style={{ objectFit: "contain", display: "block", borderRadius: 8 }}
               priority
             />
@@ -416,7 +452,7 @@ export default function Header() {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                 <polygon points="13,2 3,14 12,14 11,22 21,10 12,10" fill="#0050FF" />
               </svg>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#0050FF" }}>17 Mins Delivery</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#0050FF" }}>Express Delivery</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 1 }}>
               {loading ? (
@@ -450,6 +486,17 @@ export default function Header() {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="8" r="4" stroke="#282C3F" strokeWidth="1.8" />
               <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#282C3F" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+
+          {/* My Orders */}
+          <button
+            onClick={() => setShowMyOrdersModal(true)}
+            style={{ background: "none", border: "none", padding: 4, cursor: "pointer", flexShrink: 0 }}
+            aria-label="My Orders"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9h6m-6-4h6" stroke="#282C3F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
 
@@ -513,6 +560,181 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {showMyOrdersModal && (
+        <MyOrdersModal onClose={() => setShowMyOrdersModal(false)} />
+      )}
     </>
+  );
+}
+
+interface OrderItem {
+  productName: string;
+  variantWeight: string;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  address: string;
+  total: number;
+  payment_method: string;
+  status: string;
+  created_at: string;
+  items: OrderItem[];
+}
+
+function MyOrdersModal({ onClose }: { onClose: () => void }) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+      const placedIds = JSON.parse(localStorage.getItem("vt_my_orders") || "[]");
+      if (!Array.isArray(placedIds) || placedIds.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      supabase
+        .from("orders")
+        .select("*")
+        .in("id", placedIds)
+        .order("created_at", { ascending: false })
+        .then(({ data, error }) => {
+          if (data) {
+            setOrders(data as Order[]);
+          }
+          setLoading(false);
+        });
+    } catch {
+      setLoading(false);
+    }
+  }, []);
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending: "#F59E0B",
+    confirmed: "#3B82F6",
+    packed: "#8B5CF6",
+    delivered: "#22C55E",
+    cancelled: "#EF4444",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(2, 6, 12, 0.6)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 430,
+          backgroundColor: "#F8F8F8",
+          borderRadius: "24px 24px 0 0",
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "0 -8px 32px rgba(2,6,12,0.15)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", backgroundColor: "white", borderBottom: "1px solid #F0F0F0" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#282C3F" }}>My Orders</div>
+            <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", marginTop: 2 }}>Placed on this device</div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 4,
+              fontSize: 20,
+              fontWeight: 600,
+              color: "rgba(2,6,12,0.45)",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 24px" }}>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: "center", color: "rgba(2,6,12,0.45)" }}>Loading order history…</div>
+          ) : orders.length === 0 ? (
+            <div style={{ padding: "48px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🛍️</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#282C3F", marginBottom: 4 }}>No orders yet</div>
+              <div style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>Orders placed from this phone will show up here!</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {orders.map((order) => (
+                <div key={order.id} style={{ backgroundColor: "white", borderRadius: 16, padding: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.02)", border: "1px solid #EDEDED" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", fontFamily: "monospace", marginBottom: 2 }}>ID: {order.id.slice(0, 8).toUpperCase()}</div>
+                      <div style={{ fontSize: 11, color: "rgba(2,6,12,0.35)" }}>{new Date(order.created_at).toLocaleDateString("en-IN")}</div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: "3px 8px",
+                        borderRadius: 20,
+                        backgroundColor: STATUS_COLORS[order.status] + "20",
+                        color: STATUS_COLORS[order.status],
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {order.status}
+                    </span>
+                  </div>
+
+                  <div style={{ margin: "10px 0", height: 1, backgroundColor: "#F5F5F5" }} />
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                    {order.items?.map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#282C3F" }}>
+                        <span>
+                          {item.productName} <span style={{ color: "rgba(2,6,12,0.45)" }}>({item.variantWeight})</span> × {item.quantity}
+                        </span>
+                        <span style={{ fontWeight: 600 }}>₹{item.price * item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ margin: "10px 0", height: 1, backgroundColor: "#F5F5F5" }} />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "rgba(2,6,12,0.5)", fontWeight: 500 }}>{order.payment_method}</span>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: "#282C3F" }}>Total: ₹{order.total}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
