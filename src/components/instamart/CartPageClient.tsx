@@ -46,85 +46,13 @@ function CartRow({ item, onDelta }: { item: CartItem; onDelta: (d: number) => vo
 type Address = {
   name: string;
   phone: string;
-  doorNo: string;
-  building: string;
-  street: string;
-  locality: string;
-  city: string;
-  pincode: string;
+  address: string;
 };
 
-const EMPTY_ADDRESS: Address = { name: "", phone: "", doorNo: "", building: "", street: "", locality: "", city: "", pincode: "" };
-
-// ── Progress indicator ────────────────────────────────────────
-function AddressProgress({ addr }: { addr: Address }) {
-  const steps = [
-    {
-      label: "Contact",
-      done: addr.name.trim().length > 0 && addr.phone.trim().length >= 10,
-      missing: [!addr.name.trim() && "Name", addr.phone.trim().length < 10 && "Phone"].filter(Boolean),
-    },
-    {
-      label: "Location",
-      done: addr.pincode.trim().length === 6 && addr.locality.trim().length > 0,
-      missing: [!addr.locality.trim() && "Locality", addr.pincode.trim().length !== 6 && "Pincode"].filter(Boolean),
-    },
-    {
-      label: "Address",
-      done: addr.doorNo.trim().length > 0 && addr.street.trim().length > 0,
-      missing: [!addr.doorNo.trim() && "Door / Flat No", !addr.street.trim() && "Street"].filter(Boolean),
-    },
-  ];
-  const allDone = steps.every((s) => s.done);
-
-  return (
-    <div style={{ marginBottom: 18 }}>
-      {/* Step row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 10 }}>
-        {steps.map((step, i) => (
-          <div key={step.label} style={{ display: "flex", flex: 1, alignItems: "center" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-              <div
-                style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  backgroundColor: step.done ? "#1BA672" : "#F0F0F0",
-                  border: `2px solid ${step.done ? "#1BA672" : "#DCDCDC"}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "all 0.2s",
-                }}
-              >
-                {step.done ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#AAAAAA" }}>{i + 1}</span>
-                )}
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 600, color: step.done ? "#1BA672" : "rgba(2,6,12,0.4)", marginTop: 4 }}>{step.label}</span>
-            </div>
-            {i < steps.length - 1 && (
-              <div style={{ flex: 1, height: 2, backgroundColor: step.done ? "#1BA672" : "#E8E8E8", marginTop: -14, transition: "background-color 0.2s" }} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Missing fields hint */}
-      {!allDone && (
-        <div style={{ backgroundColor: "#FFF8E8", borderRadius: 8, padding: "8px 12px", border: "1px solid #FFE0A0" }}>
-          <span style={{ fontSize: 11, color: "#B07000", fontWeight: 600 }}>
-            Still needed: {steps.flatMap((s) => s.missing).join(" · ")}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
+const EMPTY_ADDRESS: Address = { name: "", phone: "", address: "" };
 
 // ── Address form ──────────────────────────────────────────────
 const REQ = <span style={{ color: "#E53935", marginLeft: 2, fontWeight: 700 }}>*</span>;
-const OPT = <span style={{ color: "rgba(2,6,12,0.35)", fontSize: 10, marginLeft: 4, fontWeight: 500 }}>(Optional)</span>;
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -137,29 +65,17 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 function AddressForm({
   value,
   onChange,
-  gpsLocality,
-  gpsCity,
-  gpsPincode,
-  onRefetchGPS,
-  gpsLoading,
 }: {
   value: Address;
   onChange: (a: Address) => void;
-  gpsLocality: string;
-  gpsCity: string;
-  gpsPincode: string;
-  onRefetchGPS: () => void;
-  gpsLoading: boolean;
 }) {
   function set(field: keyof Address) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...value, [field]: e.target.value });
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange({ ...value, [field]: e.target.value });
   }
 
-  function setNumeric(field: keyof Address, maxLen: number) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
-      const digits = e.target.value.replace(/\D/g, "").slice(0, maxLen);
-      onChange({ ...value, [field]: digits });
-    };
+  function setPhone(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+    onChange({ ...value, phone: digits });
   }
 
   const inp: React.CSSProperties = {
@@ -168,64 +84,25 @@ function AddressForm({
     outline: "none", backgroundColor: "white", boxSizing: "border-box", fontFamily: "inherit",
   };
 
-  const autoInp: React.CSSProperties = {
-    ...inp, backgroundColor: "#F5F8FF", border: "1.5px solid #C8D8FF", color: "#1A3A8F",
-  };
-
-  // Responsive flex wrap for small screens
-  const rowStyle: React.CSSProperties = {
-    display: "flex", gap: "clamp(6px, 2vw, 10px)", flexWrap: "wrap",
-  };
-
-  const sectionLabel: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: "rgba(2,6,12,0.4)",
-    letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 8, marginTop: 4,
+  const textarea: React.CSSProperties = {
+    ...inp,
+    height: 100,
+    resize: "none",
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={sectionLabel}>Contact Details</div>
-      <div style={rowStyle}>
-        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
-          <FieldLabel>Full Name{REQ}</FieldLabel>
-          <input style={inp} placeholder="e.g. Ravi Kumar" value={value.name} onChange={set("name")} />
-        </div>
-        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
-          <FieldLabel>Phone Number{REQ}</FieldLabel>
-          <input style={inp} placeholder="10-digit mobile" type="tel" maxLength={10} value={value.phone} onChange={setNumeric("phone", 10)} inputMode="numeric" pattern="[0-9]*" />
-        </div>
-      </div>
-
-      <div style={sectionLabel}>Exact Address</div>
-      <div style={rowStyle}>
-        <div style={{ flex: "0 0 clamp(90px, 38%, 170px)", minWidth: 0 }}>
-          <FieldLabel>Door / Flat No{REQ}</FieldLabel>
-          <input style={inp} placeholder="e.g. 12B" value={value.doorNo} onChange={set("doorNo")} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <FieldLabel>Building / Apartment{OPT}</FieldLabel>
-          <input style={inp} placeholder="e.g. Sunrise Flats" value={value.building} onChange={set("building")} />
-        </div>
+      <div>
+        <FieldLabel>Full Name{REQ}</FieldLabel>
+        <input style={inp} placeholder="e.g. Ravi Kumar" value={value.name} onChange={set("name")} />
       </div>
       <div>
-        <FieldLabel>Street / Road{REQ}</FieldLabel>
-        <input style={inp} placeholder="e.g. MG Road" value={value.street} onChange={set("street")} />
+        <FieldLabel>Phone Number{REQ}</FieldLabel>
+        <input style={inp} placeholder="10-digit mobile" type="tel" maxLength={10} value={value.phone} onChange={setPhone} inputMode="numeric" pattern="[0-9]*" />
       </div>
-
-      <div style={sectionLabel}>Location</div>
-      <div style={rowStyle}>
-        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
-          <FieldLabel>Locality{REQ}</FieldLabel>
-          <input style={inp} placeholder="e.g. Gandhipuram" value={value.locality} onChange={set("locality")} />
-        </div>
-        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
-          <FieldLabel>City{REQ}</FieldLabel>
-          <input style={inp} placeholder="e.g. Coimbatore" value={value.city} onChange={set("city")} />
-        </div>
-      </div>
-      <div style={{ width: "clamp(140px, 52%, 220px)" }}>
-        <FieldLabel>Pincode{REQ}</FieldLabel>
-        <input style={inp} placeholder="6-digit pincode" type="tel" maxLength={6} value={value.pincode} onChange={setNumeric("pincode", 6)} inputMode="numeric" pattern="[0-9]*" />
+      <div>
+        <FieldLabel>Complete Delivery Address{REQ}</FieldLabel>
+        <textarea style={textarea} placeholder="e.g. 12B, Sunset Apartment, Gandhipuram, Coimbatore - 641012" value={value.address} onChange={set("address")} />
       </div>
     </div>
   );
@@ -235,33 +112,44 @@ function AddressForm({
 export default function CartPageClient() {
   const router = useRouter();
   const { items, updateQty, totalPrice, totalItems, clearCart } = useCart();
-  const { location, loading: gpsLoading, requestLocation } = useLocation();
-  const { whatsappNumber } = useAdmin();
+  const { location } = useLocation();
 
   const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
   const [ordered, setOrdered] = useState(false);
 
+  // Load address from local storage on mount (auto-suggestion)
   useEffect(() => {
-    if (!location) return;
-    setAddress((prev) => ({
-      ...prev,
-      street: prev.street || location.street || location.area || "",
-      locality: prev.locality || location.locality || location.area || "",
-      city: prev.city || location.city,
-      pincode: prev.pincode || location.pincode,
-    }));
+    try {
+      const saved = localStorage.getItem("vt_autosuggest_address");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          setAddress({
+            name: parsed.name || "",
+            phone: parsed.phone || "",
+            address: parsed.address || "",
+          });
+        }
+      } else if (location?.formatted) {
+        // Fallback to location context if available and no autosuggest yet
+        setAddress((prev) => ({
+          ...prev,
+          address: location.formatted,
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to load autosuggest address:", e);
+    }
   }, [location]);
 
   const savings = items.reduce((s, i) => s + (i.mrp - i.price) * i.quantity, 0);
   const grandTotal = totalPrice;
 
+  // Simple validation for Name (not empty), Phone (exactly 10 digits), and Address (not empty, min 5 characters)
   const addressFilled =
-    address.name.trim() &&
-    address.phone.trim().length >= 10 &&
-    address.doorNo.trim() &&
-    address.street.trim() &&
-    address.locality.trim() &&
-    address.pincode.trim().length === 6;
+    !!address.name.trim() &&
+    address.phone.trim().length === 10 &&
+    address.address.trim().length > 5;
 
   const [ordering, setOrdering] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "UPI">("COD");
@@ -271,29 +159,13 @@ export default function CartPageClient() {
     if (!addressFilled || ordering) return;
     setOrdering(true);
 
-    const addressParts = [
-      address.doorNo,
-      address.building,
-      address.street,
-      address.locality,
-      address.city,
-      address.pincode,
-      "India",
-    ].filter(Boolean).join(", ");
-
-    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressParts)}`;
-
-    const fullAddress = [
-      `${address.doorNo}${address.building ? `, ${address.building}` : ""}`,
-      address.street,
-      `${address.locality || address.city}${address.pincode ? ` – ${address.pincode}` : ""}`,
-    ].filter(Boolean).join("\n");
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.address)}`;
 
     try {
       const { data, error } = await supabase.from('orders').insert({
         customer_name: address.name,
         customer_phone: address.phone,
-        address: fullAddress,
+        address: address.address,
         maps_link: mapsLink,
         items,
         total: grandTotal,
@@ -302,6 +174,14 @@ export default function CartPageClient() {
 
       if (data?.id) {
         setOrderId(data.id);
+        
+        // Save to local storage for automatic suggestions next time
+        try {
+          localStorage.setItem("vt_autosuggest_address", JSON.stringify(address));
+        } catch (e) {
+          console.error("Failed to save autosuggest address to local storage:", e);
+        }
+
         try {
           const placed = JSON.parse(localStorage.getItem("vt_my_orders") || "[]");
           if (Array.isArray(placed)) {
@@ -314,7 +194,10 @@ export default function CartPageClient() {
           console.error("Failed to save order ID to local storage:", e);
         }
       }
-    } catch { /* silent fail — order still shown as placed */ }
+    } catch (err) {
+      console.error("Error inserting order into Supabase:", err);
+      /* silent fail — order still shown as placed */
+    }
 
     clearCart();
     setOrdering(false);
@@ -361,8 +244,8 @@ export default function CartPageClient() {
           <div style={{ fontSize: 14, color: "#1BA672", fontWeight: 700, marginBottom: 6 }}>
             Cash on Delivery · Superfast Delivery
           </div>
-          <div style={{ fontSize: 13, color: "rgba(2,6,12,0.45)", marginBottom: 6 }}>
-            Delivering to: {address.doorNo}{address.building ? `, ${address.building}` : ""}, {address.locality}
+          <div style={{ fontSize: 13, color: "rgba(2,6,12,0.45)", marginBottom: 6, maxHeight: 40, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            Delivering to: {address.address}
           </div>
           {orderId && (
             <div style={{ fontSize: 11, color: "rgba(2,6,12,0.3)", marginBottom: 28, fontFamily: "monospace" }}>
@@ -431,7 +314,7 @@ export default function CartPageClient() {
         </svg>
         <span style={{ fontSize: 12, fontWeight: 700, color: "#0050FF" }}>FREE Express Delivery</span>
         <span style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>
-          · {location?.display ?? "Detecting location…"}
+          · Coimbatore
         </span>
       </div>
 
@@ -488,16 +371,9 @@ export default function CartPageClient() {
           <span style={{ fontSize: 14, fontWeight: 800, color: "#282C3F" }}>Delivery Address</span>
         </div>
 
-        <AddressProgress addr={address} />
-
         <AddressForm
           value={address}
           onChange={setAddress}
-          gpsLocality={location?.locality ?? ""}
-          gpsCity={location?.city ?? ""}
-          gpsPincode={location?.pincode ?? ""}
-          onRefetchGPS={requestLocation}
-          gpsLoading={gpsLoading}
         />
       </div>
 

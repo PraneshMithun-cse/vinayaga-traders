@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Product } from "@/data/products";
 import { useAdmin } from "@/context/AdminContext";
 import ProductCard from "./ProductCard";
@@ -12,9 +12,22 @@ interface Props {
 
 export default function ProductGrid({ products }: Props) {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [shuffled, setShuffled] = useState<Product[]>([]);
   const { applyOverride } = useAdmin();
 
-  const visible = products
+  useEffect(() => {
+    // Fisher-Yates Shuffle
+    const arr = [...products];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    setShuffled(arr);
+  }, [products]);
+
+  const listToRender = shuffled.length > 0 ? shuffled : products;
+
+  const visible = listToRender
     .map(applyOverride)
     .filter((p) => !p.disabled);
 
