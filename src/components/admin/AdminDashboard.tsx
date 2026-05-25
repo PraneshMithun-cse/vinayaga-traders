@@ -656,7 +656,7 @@ function OrdersTab() {
     
     setLoading(true);
     try {
-      const { error } = await supabase.from('orders').delete().neq('id', '_none_');
+      const { error } = await supabase.from('orders').delete().neq('customer_name', '_none_');
       if (!error) {
         setOrders([]);
       } else {
