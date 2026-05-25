@@ -116,6 +116,30 @@ export default function CartPageClient() {
 
   const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
   const [ordered, setOrdered] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  // Keyboard visibility detection for responsive bottom CTA adaptation
+  useEffect(() => {
+    const detectKeyboard = () => {
+      if (window.visualViewport) {
+        setIsKeyboardOpen(window.visualViewport.height < window.innerHeight * 0.85);
+      } else {
+        setIsKeyboardOpen(window.innerHeight < 500);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", detectKeyboard);
+    }
+    window.addEventListener("resize", detectKeyboard);
+    
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", detectKeyboard);
+      }
+      window.removeEventListener("resize", detectKeyboard);
+    };
+  }, []);
 
   // Load address from local storage on mount (auto-suggestion)
   useEffect(() => {
@@ -412,7 +436,24 @@ export default function CartPageClient() {
       </div>
 
       {/* Sticky place order */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, width: "100%", maxWidth: 430, margin: "0 auto", backgroundColor: "white", borderTop: "1px solid #F0F0F0", padding: "clamp(8px, 2.5vw, 12px) clamp(12px, 3.5vw, 16px)", paddingBottom: "calc(clamp(8px, 2.5vw, 12px) + env(safe-area-inset-bottom, 0px))", boxShadow: "0 -4px 12px rgba(2,6,12,0.08)", zIndex: 100 }}>
+      <div 
+        style={{ 
+          position: isKeyboardOpen ? "relative" : "fixed", 
+          bottom: 0, 
+          left: isKeyboardOpen ? "auto" : 0, 
+          right: isKeyboardOpen ? "auto" : 0, 
+          width: "100%", 
+          maxWidth: 430, 
+          margin: "0 auto", 
+          backgroundColor: "white", 
+          borderTop: "1px solid #F0F0F0", 
+          padding: "clamp(8px, 2.5vw, 12px) clamp(12px, 3.5vw, 16px)", 
+          paddingBottom: isKeyboardOpen ? "20px" : "calc(clamp(8px, 2.5vw, 12px) + env(safe-area-inset-bottom, 0px))", 
+          boxShadow: isKeyboardOpen ? "none" : "0 -4px 12px rgba(2,6,12,0.08)", 
+          zIndex: 100,
+          marginTop: isKeyboardOpen ? "16px" : 0
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>Total</div>
