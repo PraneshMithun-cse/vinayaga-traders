@@ -29,6 +29,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:apk": "EXPORT_APK=true next build && npx cap sync",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
