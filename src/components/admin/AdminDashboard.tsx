@@ -634,6 +634,7 @@ function OrdersTab() {
   const [orders, setOrders] = useState<DBOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [clearState, setClearState] = useState<"idle" | "confirm">("idle");
 
   useEffect(() => {
     supabase.from('orders').select('*').order('created_at', { ascending: false })
@@ -646,6 +647,29 @@ function OrdersTab() {
   const STATUS_COLORS: Record<string, string> = {
     pending: "#F59E0B", confirmed: "#3B82F6", packed: "#8B5CF6", delivered: "#22C55E", cancelled: "#EF4444",
   };
+
+  async function handleClearAll() {
+    if (clearState === "idle") {
+      setClearState("confirm");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('orders').delete().neq('id', '_none_');
+      if (!error) {
+        setOrders([]);
+      } else {
+        console.error("Error clearing orders:", error);
+        alert("Failed to clear orders in database: " + error.message);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Error clearing orders: " + err.message);
+    }
+    setClearState("idle");
+    setLoading(false);
+  }
 
   if (loading) return <div style={{ padding: 32, textAlign: "center", color: "rgba(2,6,12,0.4)" }}>Loading orders…</div>;
   if (!orders.length) return (
@@ -660,7 +684,33 @@ function OrdersTab() {
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ fontSize: 13, color: "rgba(2,6,12,0.45)", fontWeight: 600 }}>{orders.length} order{orders.length !== 1 ? "s" : ""} total</div>
-        <button onClick={() => { setLoading(true); supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({data}) => { if(data) setOrders(data as DBOrder[]); setLoading(false); }); }} style={{ background: "none", border: "none", color: "#0050FF", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button 
+            onClick={handleClearAll} 
+            style={{ 
+              background: "none", 
+              border: "1px solid " + (clearState === "confirm" ? "#DC2626" : "rgba(2,6,12,0.2)"), 
+              borderRadius: 6,
+              padding: "4px 10px",
+              color: clearState === "confirm" ? "#DC2626" : "#4B5563", 
+              fontWeight: 700, 
+              fontSize: 12, 
+              cursor: "pointer",
+              backgroundColor: clearState === "confirm" ? "#FEF2F2" : "transparent"
+            }}
+          >
+            {clearState === "confirm" ? "⚠️ Click to Confirm Clear" : "🗑️ Clear All"}
+          </button>
+          {clearState === "confirm" && (
+            <button 
+              onClick={() => setClearState("idle")} 
+              style={{ background: "none", border: "none", color: "#4B5563", fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+          )}
+          <button onClick={() => { setLoading(true); supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({data}) => { if(data) setOrders(data as DBOrder[]); setLoading(false); }); }} style={{ background: "none", border: "none", color: "#0050FF", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
+        </div>
       </div>
       {orders.map((order) => (
         <div key={order.id} style={{ backgroundColor: "white", borderRadius: 12, border: "1px solid #E8E8E8", overflow: "hidden" }}>
@@ -739,9 +789,167 @@ function OrdersTab() {
 }
 
 // ─────────────────────────────────────────────────────────────
+interface RevenueGroup {
+  period: string;
+  ordersCount: number;
+  totalRevenue: number;
+  averageValue: number;
+  timestamp: number;
+}
+
+function RevenueTab() {
+  const [orders, setOrders] = useState<DBOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "rev-desc" | "rev-asc">("date-desc");
+  const [groupBy, setGroupBy] = useState<"weekly" | "monthly">("monthly");
+
+  useEffect(() => {
+    supabase.from('orders').select('*')
+      .then(({ data }) => {
+        if (data) setOrders(data as DBOrder[]);
+        setLoading(false);
+      });
+  }, []);
+
+  const stats = useMemo(() => {
+    const totalOrders = orders.length;
+    const totalRev = orders.reduce((sum, o) => sum + o.total, 0);
+    const deliveredOrders = orders.filter(o => o.status === "delivered");
+    const deliveredRev = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+    const avgVal = totalOrders > 0 ? Math.round(totalRev / totalOrders) : 0;
+    return { totalOrders, totalRev, deliveredOrdersCount: deliveredOrders.length, deliveredRev, avgVal };
+  }, [orders]);
+
+  const aggregatedData = useMemo(() => {
+    const groups: Record<string, { totalRevenue: number; ordersCount: number; timestamp: number }> = {};
+
+    orders.forEach(o => {
+      const date = new Date(o.created_at);
+      let key = "";
+      let timestamp = date.getTime();
+
+      if (groupBy === "monthly") {
+        key = date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+        timestamp = new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+      } else {
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(date.setDate(diff));
+        key = `Week of ${startOfWeek.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+        timestamp = startOfWeek.getTime();
+      }
+
+      if (!groups[key]) {
+        groups[key] = { totalRevenue: 0, ordersCount: 0, timestamp };
+      }
+      groups[key].totalRevenue += o.total;
+      groups[key].ordersCount += 1;
+    });
+
+    const result: RevenueGroup[] = Object.entries(groups).map(([period, data]) => ({
+      period,
+      ordersCount: data.ordersCount,
+      totalRevenue: data.totalRevenue,
+      averageValue: Math.round(data.totalRevenue / data.ordersCount),
+      timestamp: data.timestamp,
+    }));
+
+    return result.sort((a, b) => {
+      if (sortBy === "date-desc") return b.timestamp - a.timestamp;
+      if (sortBy === "date-asc") return a.timestamp - b.timestamp;
+      if (sortBy === "rev-desc") return b.totalRevenue - a.totalRevenue;
+      if (sortBy === "rev-asc") return a.totalRevenue - b.totalRevenue;
+      return 0;
+    });
+  }, [orders, groupBy, sortBy]);
+
+  const maxRevenue = useMemo(() => {
+    if (aggregatedData.length === 0) return 1;
+    return Math.max(...aggregatedData.map(d => d.totalRevenue), 1);
+  }, [aggregatedData]);
+
+  if (loading) return <div style={{ padding: 32, textAlign: "center", color: "rgba(2,6,12,0.4)" }}>Calculating revenue metrics…</div>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Stats Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+        <div style={{ backgroundColor: "white", borderRadius: 12, padding: 16, border: "1px solid #E8E8E8", textAlign: "left" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(2,6,12,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Total Sales Revenue</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#166534", marginTop: 4 }}>₹{stats.totalRev.toLocaleString("en-IN")}</div>
+          <div style={{ fontSize: 11, color: "rgba(2,6,12,0.5)", marginTop: 2 }}>From {stats.totalOrders} total orders</div>
+        </div>
+        <div style={{ backgroundColor: "white", borderRadius: 12, padding: 16, border: "1px solid #E8E8E8", textAlign: "left" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(2,6,12,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Delivered Revenue</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#0050FF", marginTop: 4 }}>₹{stats.deliveredRev.toLocaleString("en-IN")}</div>
+          <div style={{ fontSize: 11, color: "rgba(2,6,12,0.5)", marginTop: 2 }}>{stats.deliveredOrdersCount} delivered orders</div>
+        </div>
+        <div style={{ backgroundColor: "white", borderRadius: 12, padding: 16, border: "1px solid #E8E8E8", textAlign: "left" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(2,6,12,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Average Order Value</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#282C3F", marginTop: 4 }}>₹{stats.avgVal.toLocaleString("en-IN")}</div>
+          <div style={{ fontSize: 11, color: "rgba(2,6,12,0.5)", marginTop: 2 }}>Average per order</div>
+        </div>
+        <div style={{ backgroundColor: "white", borderRadius: 12, padding: 16, border: "1px solid #E8E8E8", textAlign: "left" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(2,6,12,0.4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Orders Count</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#8B5CF6", marginTop: 4 }}>{stats.totalOrders} Orders</div>
+          <div style={{ fontSize: 11, color: "rgba(2,6,12,0.5)", marginTop: 2 }}>Pending, Packed & Delivered</div>
+        </div>
+      </div>
+
+      {/* Control panel */}
+      <div style={{ backgroundColor: "white", borderRadius: 12, padding: 16, border: "1px solid #E8E8E8", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", gap: 6, backgroundColor: "#F3F4F6", padding: 3, borderRadius: 8 }}>
+            <button onClick={() => setGroupBy("monthly")} style={{ border: "none", cursor: "pointer", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, backgroundColor: groupBy === "monthly" ? "white" : "transparent", color: groupBy === "monthly" ? "#0050FF" : "#6B7280", boxShadow: groupBy === "monthly" ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>Monthly</button>
+            <button onClick={() => setGroupBy("weekly")} style={{ border: "none", cursor: "pointer", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, backgroundColor: groupBy === "weekly" ? "white" : "transparent", color: groupBy === "weekly" ? "#0050FF" : "#6B7280", boxShadow: groupBy === "weekly" ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>Weekly</button>
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "rgba(2,6,12,0.5)", fontWeight: 700 }}>Sort By:</span>
+            <select value={sortBy} onChange={(e: any) => setSortBy(e.target.value)} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid #E8E8E8", fontSize: 12, fontWeight: 600, color: "#282C3F", backgroundColor: "white", outline: "none", cursor: "pointer" }}>
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="rev-desc">Highest Revenue</option>
+              <option value="rev-asc">Lowest Revenue</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Aggregate lists */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {aggregatedData.length === 0 ? (
+          <div style={{ backgroundColor: "white", borderRadius: 12, padding: 32, textAlign: "center", color: "rgba(2,6,12,0.4)" }}>No sales data found for aggregation.</div>
+        ) : (
+          aggregatedData.map((data, idx) => {
+            const barWidthPercent = Math.max(10, Math.round((data.totalRevenue / maxRevenue) * 100));
+            return (
+              <div key={idx} style={{ backgroundColor: "white", borderRadius: 12, padding: 16, border: "1px solid #E8E8E8", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: "#282C3F" }}>{data.period}</span>
+                    <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", marginTop: 2 }}>{data.ordersCount} order{data.ordersCount !== 1 ? "s" : ""} · Avg: ₹{data.averageValue}</div>
+                  </div>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: "#166534" }}>₹{data.totalRevenue.toLocaleString("en-IN")}</span>
+                </div>
+                
+                {/* Visual Bar Chart */}
+                <div style={{ width: "100%", height: 8, backgroundColor: "#F3F4F6", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: `${barWidthPercent}%`, height: "100%", backgroundColor: "#1BA672", borderRadius: 4, transition: "width 0.3s" }} />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Main Dashboard
 // ─────────────────────────────────────────────────────────────
-type Tab = "products" | "orders" | "add" | "bulk" | "settings";
+type Tab = "products" | "orders" | "revenue" | "add" | "bulk" | "settings";
 
 export default function AdminDashboard() {
   const { logout, getAllProducts, newProducts, resetToDefault } = useAdmin();
@@ -766,6 +974,7 @@ export default function AdminDashboard() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "products", label: "Products" },
     { key: "orders", label: "Orders" },
+    { key: "revenue", label: "Revenue" },
     { key: "add", label: "Add" },
     { key: "bulk", label: "Bulk" },
     { key: "settings", label: "Settings" },
@@ -826,6 +1035,7 @@ export default function AdminDashboard() {
         )}
 
         {tab === "orders" && <OrdersTab />}
+        {tab === "revenue" && <RevenueTab />}
         {tab === "add" && <AddProductPanel />}
         {tab === "bulk" && <BulkActions />}
         {tab === "settings" && <WhatsAppSettings />}

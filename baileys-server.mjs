@@ -35,9 +35,11 @@ async function useSupabaseAuthState() {
       creds,
       keys: {
         get: async (type, ids) => {
+          if (!ids || ids.length === 0) return {};
           const data = {};
           const keysToFetch = ids.map(id => `${type}-${id}`);
-          const { data: keyRows } = await supabase.from('wa_auth').select('id, data').in('id', keysToFetch);
+          const { data: keyRows, error } = await supabase.from('wa_auth').select('id, data').in('id', keysToFetch);
+          if (error) console.error("[wa_auth get error]:", error);
           if (keyRows) {
             for (const row of keyRows) {
               const id = row.id.split(`${type}-`)[1];
@@ -62,12 +64,13 @@ async function useSupabaseAuthState() {
           }
           if (upserts.length > 0) {
             for (const u of upserts) {
-              // Upsert row by row since array upsert has size limits sometimes
-              await supabase.from('wa_auth').upsert(u);
+              const { error } = await supabase.from('wa_auth').upsert(u);
+              if (error) console.error("[wa_auth upsert error]:", error);
             }
           }
           if (deletes.length > 0) {
-            await supabase.from('wa_auth').delete().in('id', deletes);
+            const { error } = await supabase.from('wa_auth').delete().in('id', deletes);
+            if (error) console.error("[wa_auth delete error]:", error);
           }
         }
       }
@@ -77,8 +80,8 @@ async function useSupabaseAuthState() {
     }
   };
 }
-const OWNER_PHONE = process.env.OWNER_PHONE || "919655566602";
-const PORT = process.env.WA_PORT || 3002;
+const OWNER_PHONE = process.env.OWNER_PHONE || "919585666020";
+const PORT = process.env.PORT || process.env.WA_PORT || 3002;
 
 const app = express();
 app.use(express.json());
@@ -173,31 +176,57 @@ async function pollOrders() {
       .order('created_at', { ascending: true })
       .limit(5);
 
-    if (error) throw error;
+    if (error) {
+      console.log("[pollOrders] Supabase error:", error);
+      throw error;
+    }
+    
+    if (orders && orders.length > 0) {
+      console.log(`[pollOrders] Found ${orders.length} un-sent orders`);
+    }
 
     for (const order of orders) {
-      // Build message
-      let msg = `📦 *New Order Received!*\n\n`;
-      msg += `*Name:* ${order.customer_name}\n`;
-      msg += `*Phone:* ${order.customer_phone}\n`;
-      msg += `*Address:* ${order.address}\n`;
-      if (order.maps_link) msg += `*Maps:* ${order.maps_link}\n`;
-      msg += `*Payment:* ${order.payment_method}\n\n`;
-      msg += `*Items:*\n`;
+      // Build message exactly in the user's requested format
+      let msg = `# New Order Received\n\n`;
+      msg += `## Customer Details\n\n`;
+      msg += `**Name:** ${order.customer_name}\n`;
+      msg += `**Phone:** ${order.customer_phone}\n\n`;
+      
+      msg += `## Delivery Address\n\n`;
+      msg += `${order.address}\n\n`;
+      
+      if (order.maps_link) {
+        msg += `Google Maps:\n`;
+        msg += `[View Location](${order.maps_link})\n\n`;
+      }
+      
+      msg += `---\n\n`;
+      msg += `## Order Items\n\n`;
+      msg += `| No. | Product | Quantity | Amount |\n`;
+      msg += `| --- | -------------------- | -------- | ------ |\n`;
       
       const items = order.items || [];
       items.forEach((item, i) => {
-        msg += `${i + 1}. ${item.productName} (${item.variantWeight}) - ${item.quantity}x = ₹${item.price * item.quantity}\n`;
+        const prodName = `${item.productName} (${item.variantWeight})`;
+        msg += `| ${i + 1} | ${prodName} | ${item.quantity} | ₹${item.price * item.quantity} |\n`;
       });
       
-      msg += `\n*Total:* ₹${order.total}\n`;
-      msg += `*Status:* ${order.status}`;
+      msg += `\n---\n\n`;
+      msg += `## Payment Details\n\n`;
+      msg += `**Method:** ${order.payment_method}\n\n`;
+      
+      msg += `## Order Summary\n\n`;
+      msg += `**Total:** ₹${order.total}\n`;
+      msg += `**Status:** ${order.status}`;
 
       const rawNum = OWNER_PHONE.replace(/\D/g, "");
       const jid = `${rawNum}@s.whatsapp.net`;
 
-      // Send WA Message
-      await sock.sendMessage(jid, { text: msg });
+      // Send WA Message with timeout
+      const sendPromise = sock.sendMessage(jid, { text: msg });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout sending message")), 10000));
+      await Promise.race([sendPromise, timeoutPromise]);
+      
       console.log(`[WhatsApp] ✓ Sent order notification for ${order.customer_name}`);
 
       // Mark as sent in Supabase
@@ -338,7 +367,11 @@ app.post("/api/notify", async (req, res) => {
   const jid = `${rawNum}@s.whatsapp.net`;
 
   try {
-    await sock.sendMessage(jid, { text: message });
+    // Send with timeout
+    const sendPromise = sock.sendMessage(jid, { text: message });
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout sending message")), 10000));
+    await Promise.race([sendPromise, timeoutPromise]);
+    
     console.log(`[WhatsApp] ✓ Sent test message to ${rawNum}`);
     res.json({ ok: true });
   } catch (err) {

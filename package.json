@@ -68,7 +68,9 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@tailwindcss/postcss": "^4",
+    "@types/google.maps": "^3.64.1",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",

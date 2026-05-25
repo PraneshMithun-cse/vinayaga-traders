@@ -71,8 +71,8 @@ function AddressProgress({ addr }: { addr: Address }) {
     },
     {
       label: "Address",
-      done: addr.doorNo.trim().length > 0,
-      missing: [!addr.doorNo.trim() && "Door / Flat No"].filter(Boolean),
+      done: addr.doorNo.trim().length > 0 && addr.street.trim().length > 0,
+      missing: [!addr.doorNo.trim() && "Door / Flat No", !addr.street.trim() && "Street"].filter(Boolean),
     },
   ];
   const allDone = steps.every((s) => s.done);
@@ -155,14 +155,26 @@ function AddressForm({
     return (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...value, [field]: e.target.value });
   }
 
+  function setNumeric(field: keyof Address, maxLen: number) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const digits = e.target.value.replace(/\D/g, "").slice(0, maxLen);
+      onChange({ ...value, [field]: digits });
+    };
+  }
+
   const inp: React.CSSProperties = {
-    width: "100%", padding: "12px 14px", borderRadius: 10,
-    border: "1.5px solid #E8E8E8", fontSize: 14, color: "#282C3F",
+    width: "100%", padding: "clamp(10px, 3vw, 12px) clamp(10px, 3vw, 14px)", borderRadius: 10,
+    border: "1.5px solid #E8E8E8", fontSize: 16, color: "#282C3F",
     outline: "none", backgroundColor: "white", boxSizing: "border-box", fontFamily: "inherit",
   };
 
   const autoInp: React.CSSProperties = {
     ...inp, backgroundColor: "#F5F8FF", border: "1.5px solid #C8D8FF", color: "#1A3A8F",
+  };
+
+  // Responsive flex wrap for small screens
+  const rowStyle: React.CSSProperties = {
+    display: "flex", gap: "clamp(6px, 2vw, 10px)", flexWrap: "wrap",
   };
 
   const sectionLabel: React.CSSProperties = {
@@ -172,75 +184,49 @@ function AddressForm({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Contact */}
       <div style={sectionLabel}>Contact Details</div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}>
+      <div style={rowStyle}>
+        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
           <FieldLabel>Full Name{REQ}</FieldLabel>
           <input style={inp} placeholder="e.g. Ravi Kumar" value={value.name} onChange={set("name")} />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
           <FieldLabel>Phone Number{REQ}</FieldLabel>
-          <input style={inp} placeholder="10-digit mobile" type="tel" maxLength={10} value={value.phone} onChange={set("phone")} />
+          <input style={inp} placeholder="10-digit mobile" type="tel" maxLength={10} value={value.phone} onChange={setNumeric("phone", 10)} inputMode="numeric" pattern="[0-9]*" />
         </div>
       </div>
 
-      {/* Exact address */}
       <div style={sectionLabel}>Exact Address</div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: "0 0 42%" }}>
+      <div style={rowStyle}>
+        <div style={{ flex: "0 0 clamp(90px, 38%, 170px)", minWidth: 0 }}>
           <FieldLabel>Door / Flat No{REQ}</FieldLabel>
           <input style={inp} placeholder="e.g. 12B" value={value.doorNo} onChange={set("doorNo")} />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <FieldLabel>Building / Apartment{OPT}</FieldLabel>
           <input style={inp} placeholder="e.g. Sunrise Flats" value={value.building} onChange={set("building")} />
         </div>
       </div>
       <div>
-        <FieldLabel>Street / Colony{REQ}</FieldLabel>
-        <input style={inp} placeholder="e.g. 4th Cross Street" value={value.street} onChange={set("street")} />
+        <FieldLabel>Street / Road{REQ}</FieldLabel>
+        <input style={inp} placeholder="e.g. MG Road" value={value.street} onChange={set("street")} />
       </div>
 
-      {/* GPS-filled fields */}
-      <div style={{ ...sectionLabel, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
-        <span>Location (Auto-detected)</span>
-        <button
-          onClick={onRefetchGPS}
-          disabled={gpsLoading}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "#0050FF", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, textTransform: "none", letterSpacing: 0 }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-            <path d="M1 4v6h6M23 20v-6h-6" stroke="#0050FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" stroke="#0050FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {gpsLoading ? "Locating…" : "Refresh"}
-        </button>
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}>
+      <div style={sectionLabel}>Location</div>
+      <div style={rowStyle}>
+        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
           <FieldLabel>Locality{REQ}</FieldLabel>
-          <input style={autoInp} placeholder="e.g. Gandhipuram" value={value.locality} onChange={set("locality")} />
+          <input style={inp} placeholder="e.g. Gandhipuram" value={value.locality} onChange={set("locality")} />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: "1 1 clamp(120px, 40%, 200px)", minWidth: 0 }}>
           <FieldLabel>City{REQ}</FieldLabel>
-          <input style={autoInp} placeholder="e.g. Coimbatore" value={value.city} onChange={set("city")} />
+          <input style={inp} placeholder="e.g. Coimbatore" value={value.city} onChange={set("city")} />
         </div>
       </div>
-      <div style={{ width: "52%" }}>
+      <div style={{ width: "clamp(140px, 52%, 220px)" }}>
         <FieldLabel>Pincode{REQ}</FieldLabel>
-        <input style={autoInp} placeholder="6-digit pincode" type="tel" maxLength={6} value={value.pincode} onChange={set("pincode")} />
+        <input style={inp} placeholder="6-digit pincode" type="tel" maxLength={6} value={value.pincode} onChange={setNumeric("pincode", 6)} inputMode="numeric" pattern="[0-9]*" />
       </div>
-      {(gpsLocality || gpsCity || gpsPincode) && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#1BA672" opacity="0.8" />
-          </svg>
-          <span style={{ fontSize: 10, color: "#1BA672", fontWeight: 600 }}>
-            Location detected: {[gpsLocality, gpsCity].filter(Boolean).join(", ")}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -255,7 +241,6 @@ export default function CartPageClient() {
   const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
   const [ordered, setOrdered] = useState(false);
 
-  // Auto-fill GPS fields when location arrives
   useEffect(() => {
     if (!location) return;
     setAddress((prev) => ({
@@ -274,6 +259,7 @@ export default function CartPageClient() {
     address.name.trim() &&
     address.phone.trim().length >= 10 &&
     address.doorNo.trim() &&
+    address.street.trim() &&
     address.locality.trim() &&
     address.pincode.trim().length === 6;
 
@@ -295,27 +281,12 @@ export default function CartPageClient() {
       "India",
     ].filter(Boolean).join(", ");
 
-    let mapsLink: string | undefined;
-    try {
-      const geoRes = await fetch(
-        `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressParts)}&filter=countrycode:in&limit=1&apiKey=4GPoS8rLDCfdHRnPHYhf`
-      );
-      const geoData = await geoRes.json();
-      const feat = geoData?.features?.[0];
-      if (feat?.geometry?.coordinates) {
-        const [lng, lat] = feat.geometry.coordinates as [number, number];
-        mapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
-      }
-    } catch { /* no maps link */ }
-
-    if (!mapsLink) {
-      mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressParts)}`;
-    }
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressParts)}`;
 
     const fullAddress = [
       `${address.doorNo}${address.building ? `, ${address.building}` : ""}`,
       address.street,
-      `${address.locality}, ${address.city} — ${address.pincode}`,
+      `${address.locality || address.city}${address.pincode ? ` – ${address.pincode}` : ""}`,
     ].filter(Boolean).join("\n");
 
     try {
@@ -441,7 +412,7 @@ export default function CartPageClient() {
 
   // ── Cart with items ──
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", backgroundColor: "#F8F8F8", paddingBottom: 120 }}>
+    <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", backgroundColor: "#F8F8F8", paddingBottom: "calc(130px + env(safe-area-inset-bottom, 0px))" }}>
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "white", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", padding: "12px 16px", gap: 12, boxShadow: "rgba(2,6,12,0.08) 0px 2px 8px 0px" }}>
         <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/"); }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}>
@@ -565,7 +536,7 @@ export default function CartPageClient() {
       </div>
 
       {/* Sticky place order */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, width: "100%", maxWidth: 430, margin: "0 auto", backgroundColor: "white", borderTop: "1px solid #F0F0F0", padding: "12px 16px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", boxShadow: "0 -4px 12px rgba(2,6,12,0.08)", zIndex: 100 }}>
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, width: "100%", maxWidth: 430, margin: "0 auto", backgroundColor: "white", borderTop: "1px solid #F0F0F0", padding: "clamp(8px, 2.5vw, 12px) clamp(12px, 3.5vw, 16px)", paddingBottom: "calc(clamp(8px, 2.5vw, 12px) + env(safe-area-inset-bottom, 0px))", boxShadow: "0 -4px 12px rgba(2,6,12,0.08)", zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>Total</div>
