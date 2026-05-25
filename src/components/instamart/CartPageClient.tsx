@@ -348,139 +348,135 @@ export default function CartPageClient() {
 
   // ── Cart with items ──
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", backgroundColor: "#F8F8F8", paddingBottom: "calc(130px + env(safe-area-inset-bottom, 0px))" }}>
-      {/* Header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "white", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", padding: "12px 16px", gap: 12, boxShadow: "rgba(2,6,12,0.08) 0px 2px 8px 0px" }}>
-        <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/"); }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="#282C3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#282C3F" }}>My Cart</div>
-          <div style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>{totalItems} item{totalItems !== 1 ? "s" : ""}</div>
+    <div style={{ maxWidth: 430, margin: "0 auto", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "#F8F8F8" }}>
+      {/* Scrollable Content Container */}
+      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+        {/* Header */}
+        <div style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "white", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", padding: "12px 16px", gap: 12, boxShadow: "rgba(2, 6, 12, 0.08) 0px 2px 8px 0px" }}>
+          <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/"); }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="#282C3F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#282C3F" }}>My Cart</div>
+            <div style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>{totalItems} item{totalItems !== 1 ? "s" : ""}</div>
+          </div>
         </div>
-      </div>
 
-      {/* Delivery strip */}
-      <div style={{ backgroundColor: "white", padding: "10px 16px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", gap: 8 }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-          <polygon points="13,2 3,14 12,14 11,22 21,10 12,10" fill="#0050FF" />
-        </svg>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#0050FF" }}>FREE Express Delivery</span>
-        <span style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>
-          · Coimbatore
-        </span>
-      </div>
-
-      {/* Cart items */}
-      <div style={{ backgroundColor: "white", marginBottom: 8 }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #F0F0F0" }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#282C3F" }}>Items in your cart</span>
-        </div>
-        {items.map((item) => (
-          <CartRow key={`${item.productId}-${item.variantId}`} item={item} onDelta={(d) => updateQty(item.productId, item.variantId, d)} />
-        ))}
-      </div>
-
-      {/* Savings banner */}
-      {savings > 0 && (
-        <div style={{ backgroundColor: "#EAF7F1", padding: "12px 16px", display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-            <path d="M12 2L15 9H22L16 13.5L18 21L12 17L6 21L8 13.5L2 9H9L12 2Z" fill="#1BA672" />
+        {/* Delivery strip */}
+        <div style={{ backgroundColor: "white", padding: "10px 16px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", gap: 8 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <polygon points="13,2 3,14 12,14 11,22 21,10 12,10" fill="#0050FF" />
           </svg>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#1BA672" }}>You save ₹{savings} on this order!</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#0050FF" }}>FREE Express Delivery</span>
+          <span style={{ fontSize: 12, color: "rgba(2,6,12,0.45)" }}>
+            · Coimbatore
+          </span>
         </div>
-      )}
 
-      {/* Bill details */}
-      <div style={{ backgroundColor: "white", marginBottom: 8, padding: "0 0 4px" }}>
-        <div style={{ padding: "14px 16px 10px" }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: "#282C3F" }}>Bill Details</span>
+        {/* Cart items */}
+        <div style={{ backgroundColor: "white", marginBottom: 8 }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #F0F0F0" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#282C3F" }}>Items in your cart</span>
+          </div>
+          {items.map((item) => (
+            <CartRow key={`${item.productId}-${item.variantId}`} item={item} onDelta={(d) => updateQty(item.productId, item.variantId, d)} />
+          ))}
         </div>
-        {[
-          { label: "Item Total", value: `₹${totalPrice}`, sub: savings > 0 ? `You save ₹${savings}` : undefined, subColor: "#1BA672" },
-          { label: "Delivery Fee", value: "FREE", valueColor: "#1BA672", sub: "Free delivery on all orders", subColor: "#1BA672" },
-        ].map((row) => (
-          <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 16px" }}>
-            <div>
-              <div style={{ fontSize: 13, color: "rgba(2,6,12,0.65)" }}>{row.label}</div>
-              {row.sub && <div style={{ fontSize: 11, color: row.subColor ?? "rgba(2,6,12,0.4)", marginTop: 1 }}>{row.sub}</div>}
+
+        {/* Savings banner */}
+        {savings > 0 && (
+          <div style={{ backgroundColor: "#EAF7F1", padding: "12px 16px", display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M12 2L15 9H22L16 13.5L18 21L12 17L6 21L8 13.5L2 9H9L12 2Z" fill="#1BA672" />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#1BA672" }}>You save ₹{savings} on this order!</span>
+          </div>
+        )}
+
+        {/* Bill details */}
+        <div style={{ backgroundColor: "white", marginBottom: 8, padding: "0 0 4px" }}>
+          <div style={{ padding: "14px 16px 10px" }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: "#282C3F" }}>Bill Details</span>
+          </div>
+          {[
+            { label: "Item Total", value: `₹${totalPrice}`, sub: savings > 0 ? `You save ₹${savings}` : undefined, subColor: "#1BA672" },
+            { label: "Delivery Fee", value: "FREE", valueColor: "#1BA672", sub: "Free delivery on all orders", subColor: "#1BA672" },
+          ].map((row) => (
+            <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 16px" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "rgba(2,6,12,0.65)" }}>{row.label}</div>
+                {row.sub && <div style={{ fontSize: 11, color: row.subColor ?? "rgba(2,6,12,0.4)", marginTop: 1 }}>{row.sub}</div>}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: (row as { valueColor?: string }).valueColor ?? "#282C3F" }}>{row.value}</span>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: (row as { valueColor?: string }).valueColor ?? "#282C3F" }}>{row.value}</span>
+          ))}
+          <div style={{ margin: "8px 16px 0", height: 1, backgroundColor: "#F0F0F0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px" }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#282C3F" }}>To Pay</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#282C3F" }}>₹{grandTotal}</span>
           </div>
-        ))}
-        <div style={{ margin: "8px 16px 0", height: 1, backgroundColor: "#F0F0F0" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px" }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: "#282C3F" }}>To Pay</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: "#282C3F" }}>₹{grandTotal}</span>
-        </div>
-      </div>
-
-      {/* Delivery address */}
-      <div style={{ backgroundColor: "white", marginBottom: 8, padding: "16px 16px 20px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z" fill="#0050FF" />
-          </svg>
-          <span style={{ fontSize: 14, fontWeight: 800, color: "#282C3F" }}>Delivery Address</span>
         </div>
 
-        <AddressForm
-          value={address}
-          onChange={setAddress}
-        />
-      </div>
-
-      {/* Payment method */}
-      <div style={{ backgroundColor: "white", marginBottom: 8, padding: "16px" }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "#282C3F", marginBottom: 14 }}>Payment Method</div>
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: 14, padding: "14px",
-            border: "2px solid #E8E8E8",
-            borderRadius: 12,
-            backgroundColor: "white",
-          }}
-        >
-          <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid #0050FF", backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#0050FF" }} />
+        {/* Delivery address */}
+        <div style={{ backgroundColor: "white", marginBottom: 8, padding: "16px 16px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z" fill="#0050FF" />
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 800, color: "#282C3F" }}>Delivery Address</span>
           </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#282C3F" }}>Cash on Delivery</div>
-            <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", marginTop: 1 }}>Pay cash when order arrives</div>
+
+          <AddressForm
+            value={address}
+            onChange={setAddress}
+          />
+        </div>
+
+        {/* Payment method */}
+        <div style={{ backgroundColor: "white", marginBottom: 8, padding: "16px" }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#282C3F", marginBottom: 14 }}>Payment Method</div>
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 14, padding: "14px",
+              border: "2px solid #E8E8E8",
+              borderRadius: 12,
+              backgroundColor: "white",
+            }}
+          >
+            <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid #0050FF", backgroundColor: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#0050FF" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#282C3F" }}>Cash on Delivery</div>
+              <div style={{ fontSize: 11, color: "rgba(2,6,12,0.45)", marginTop: 1 }}>Pay cash when order arrives</div>
+            </div>
+            <svg width="28" height="20" viewBox="0 0 40 28" fill="none" style={{ marginLeft: "auto" }}>
+              <rect width="40" height="28" rx="4" fill="#F0F0F0" />
+              <rect x="4" y="8" width="32" height="4" rx="1" fill="#888" />
+              <rect x="4" y="16" width="14" height="4" rx="1" fill="#888" />
+            </svg>
           </div>
-          <svg width="28" height="20" viewBox="0 0 40 28" fill="none" style={{ marginLeft: "auto" }}>
-            <rect width="40" height="28" rx="4" fill="#F0F0F0" />
-            <rect x="4" y="8" width="32" height="4" rx="1" fill="#888" />
-            <rect x="4" y="16" width="14" height="4" rx="1" fill="#888" />
-          </svg>
+        </div>
+
+        {/* Cancellation policy */}
+        <div style={{ backgroundColor: "white", padding: "14px 16px", marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#282C3F", marginBottom: 6 }}>Cancellation Policy</div>
+          <div style={{ fontSize: 12, color: "rgba(2,6,12,0.5)", lineHeight: 1.6 }}>
+            Orders cannot be cancelled once packing is done. 100% refund issued if cancelled before packing.
+          </div>
         </div>
       </div>
 
-      {/* Cancellation policy */}
-      <div style={{ backgroundColor: "white", padding: "14px 16px", marginBottom: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#282C3F", marginBottom: 6 }}>Cancellation Policy</div>
-        <div style={{ fontSize: 12, color: "rgba(2,6,12,0.5)", lineHeight: 1.6 }}>
-          Orders cannot be cancelled once packing is done. 100% refund issued if cancelled before packing.
-        </div>
-      </div>
-
-      {/* Sticky place order */}
+      {/* Checkout Footer Bar */}
       <div 
         style={{ 
-          position: isKeyboardOpen ? "relative" : "fixed", 
-          bottom: 0, 
-          left: isKeyboardOpen ? "auto" : 0, 
-          right: isKeyboardOpen ? "auto" : 0, 
-          width: "100%", 
-          maxWidth: 430, 
-          margin: "0 auto", 
           backgroundColor: "white", 
           borderTop: "1px solid #F0F0F0", 
           padding: "clamp(8px, 2.5vw, 12px) clamp(12px, 3.5vw, 16px)", 
-          paddingBottom: isKeyboardOpen ? "20px" : "calc(clamp(8px, 2.5vw, 12px) + env(safe-area-inset-bottom, 0px))", 
-          boxShadow: isKeyboardOpen ? "none" : "0 -4px 12px rgba(2,6,12,0.08)", 
+          paddingBottom: "calc(clamp(8px, 2.5vw, 12px) + env(safe-area-inset-bottom, 0px))", 
+          boxShadow: "0 -4px 12px rgba(2,6,12,0.08)", 
           zIndex: 100,
-          marginTop: isKeyboardOpen ? "16px" : 0
+          flexShrink: 0
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>

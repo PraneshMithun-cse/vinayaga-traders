@@ -146,7 +146,7 @@ export default function Header() {
 
         {/* Search bar */}
         <div style={{ padding: "clamp(6px, 2vw, 8px) clamp(10px, 3vw, 16px) clamp(6px, 2vw, 10px)" }}>
-          <div
+          <button
             onClick={() => router.push("/search")}
             style={{
               display: "flex",
@@ -157,6 +157,10 @@ export default function Header() {
               borderRadius: 10,
               padding: "clamp(8px, 2.5vw, 10px) clamp(10px, 3vw, 12px)",
               cursor: "pointer",
+              width: "100%",
+              outline: "none",
+              fontFamily: "inherit",
+              textAlign: "left",
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
@@ -176,7 +180,7 @@ export default function Header() {
             >
               {`Search for "${SEARCH_SUGGESTIONS[searchIdx]}"`}
             </span>
-          </div>
+          </button>
         </div>
       </div>
 
