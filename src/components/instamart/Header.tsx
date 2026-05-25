@@ -43,13 +43,13 @@ export default function Header() {
             <Image
               src="/vinayaga-logo.png"
               alt="Vinayaga Traders"
-              width={155}
-              height={155}
+              width={95}
+              height={95}
               style={{
                 objectFit: "contain",
                 display: "block",
                 borderRadius: 8,
-                width: "clamp(115px, 36vw, 155px)",
+                width: "clamp(85px, 25vw, 95px)",
                 height: "auto",
               }}
               priority
