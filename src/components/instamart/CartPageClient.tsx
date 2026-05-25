@@ -94,15 +94,44 @@ function AddressForm({
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div>
         <FieldLabel>Full Name{REQ}</FieldLabel>
-        <input style={inp} placeholder="e.g. Ravi Kumar" value={value.name} onChange={set("name")} />
+        <input
+          id="customer-name"
+          name="customer-name"
+          type="text"
+          autoComplete="name"
+          style={inp}
+          placeholder="e.g. Ravi Kumar"
+          value={value.name}
+          onChange={set("name")}
+        />
       </div>
       <div>
         <FieldLabel>Phone Number{REQ}</FieldLabel>
-        <input style={inp} placeholder="10-digit mobile" type="tel" maxLength={10} value={value.phone} onChange={setPhone} inputMode="numeric" pattern="[0-9]*" />
+        <input
+          id="customer-phone"
+          name="customer-phone"
+          type="tel"
+          autoComplete="tel"
+          maxLength={10}
+          style={inp}
+          placeholder="10-digit mobile"
+          value={value.phone}
+          onChange={setPhone}
+          inputMode="numeric"
+          pattern="[0-9]*"
+        />
       </div>
       <div>
         <FieldLabel>Complete Delivery Address{REQ}</FieldLabel>
-        <textarea style={textarea} placeholder="e.g. 12B, Sunset Apartment, Gandhipuram, Coimbatore - 641012" value={value.address} onChange={set("address")} />
+        <textarea
+          id="customer-address"
+          name="customer-address"
+          autoComplete="street-address"
+          style={textarea}
+          placeholder="e.g. 12B, Sunset Apartment, Gandhipuram, Coimbatore - 641012"
+          value={value.address}
+          onChange={set("address")}
+        />
       </div>
     </div>
   );
